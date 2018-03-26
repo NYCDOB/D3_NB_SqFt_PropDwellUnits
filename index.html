@@ -114,7 +114,7 @@
 		var svg = d3.select(map.getPanes().overlayPane).append("svg"),
 			g = svg.append("g").attr("class", "leaflet-zoom-hide");
 			
-		//map.scrollWheelZoom.disable();
+		map.scrollWheelZoom.disable();
 
 		var sites = 0;
 
@@ -174,28 +174,62 @@
 			}
 		}
 		
+		<!-- function createPropSymbols(header, data) { -->
+			<!-- sites = L.geoJson(data, { -->
+				<!-- pointToLayer: function (feature, latlng) { -->
+					<!-- return L.circleMarker (latlng, { -->
+						<!-- //fillColor: "#FF5500", -->
+						<!-- weight: 0, -->
+						<!-- fillOpacity: 0.7 -->
+					<!-- }).on({ -->
+						<!-- mouseover: function(e) { -->
+							<!-- this.openPopup(); -->
+							<!-- this.setStyle({color: "yellow"}); -->
+						<!-- }, -->
+						<!-- mouseout: function(e) { -->
+							<!-- this.closePopup(); -->
+							<!-- this.setStyle({color: "#FF5500"}); -->
+						<!-- } -->
+					<!-- }); -->
+				<!-- } -->
+			<!-- }).addTo(map); -->
+			
+			<!-- updatePropSymbols(header[0]); -->
+		<!-- } -->
+		
 		function createPropSymbols(header, data) {
+
 			sites = L.geoJson(data, {
 				pointToLayer: function (feature, latlng) {
+			var prop = feature.properties;
+			var popupContent = "<u> ADDRESS </u> <br>" + 
+							"<b>" + prop.Address + ", " + prop.Borough + "</b>" +
+							"<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+prop.Permit_Iss+"</b>" +
+							"<br> <u> JOB NUMBER </u> <br> "+ "<b>" +prop.Job_Number+"</b>" +
+							"<br> <u> TOTAL SQUARE FOOTAGE </u> <br> "+"<b>"+prop.Total_Cons+"</b>";
+				
 					return L.circleMarker (latlng, {
 						//fillColor: "#FF5500",
 						weight: 0,
 						fillOpacity: 0.7
-					}).on({
-						mouseover: function(e) {
-							this.openPopup();
-							this.setStyle({color: "yellow"});
-						},
-						mouseout: function(e) {
-							this.closePopup();
-							this.setStyle({color: "#FF5500"});
-						}
-					});
+
+					}).on('click', function(e){
+						this.bindPopup(popupContent).openPopup();
+					})
+					<!-- .on('mouseover', function(e){ -->
+						<!-- this.openPopup(); -->
+						<!-- this.setStyle({color: "yellow"}); -->
+					<!-- }) -->
+					<!-- .on('mouseout', function(e){ -->
+						<!-- this.closePopup(); -->
+						<!-- this.setStyle({color: "#FF5500"}); -->
+					<!-- }); -->
 				}
 			}).addTo(map);
 			
 			updatePropSymbols(header[0]);
-		}
+		}		
+		
 		
 		
 		
@@ -205,16 +239,18 @@
 				var props = layer.feature.properties;
 				var radius = calcPropRadius(props[header]);
 				var color = calcColor(props[header]);
-								
-				var popupContent = "<u> ADDRESS </u> <br>" + 
-								"<b>" + props.Address + ", " + props.Borough + "</b>" +
-								"<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+props.Permit_Iss+"</b>" +
-								"<br> <u> JOB NUMBER </u> <br> "+ "<b>" +props.Job_Number+"</b>" +
-								"<br> <u> TOTAL SQUARE FOOTAGE </u> <br> "+"<b>"+props.Total_Cons+"</b>";								
+
+				
+				<!-- var popupContent = "<u> ADDRESS </u> <br>" +  -->
+								<!-- "<b>" + props.Address + ", " + props.Borough + "</b>" + -->
+								<!-- "<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+props.Permit_Iss+"</b>" + -->
+								<!-- "<br> <u> JOB NUMBER </u> <br> "+ "<b>" +props.Job_Number+"</b>" + -->
+								<!-- "<br> <u> TOTAL SQUARE FOOTAGE </u> <br> "+"<b>"+props.Total_Cons+"</b>";								 -->
 				
 				layer.setRadius(radius);
 				layer.setStyle({fillColor: color});
-				layer.bindPopup(popupContent, { offset: new L.Point(0,-radius) });
+				//layer.bindPopup(popupContent, { offset: new L.Point(0,-radius) });
+
 			});
 		
 		}
@@ -354,20 +390,30 @@
 		function createPropSymbols(headerdwell, data) {
 			sites = L.geoJson(data, {
 				pointToLayer: function (feature, latlng) {
+					var prop = feature.properties;
+					var popupContent = "<u> ADDRESS </u> <br>" + 
+									"<b>" + prop.Address + ", " + prop.Borough + "</b>" +
+									"<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+prop.Permit_Iss+"</b>" +
+									"<br> <u> JOB NUMBER </u> <br> "+ "<b>" +prop.Job_Number+"</b>" +
+									"<br> <u> PROPOSED DWELLING UNITS </u> <br> "+"<b>"+prop.Proposed_D+"</b>";
+				
+				
 					return L.circleMarker (latlng, {
 						//fillColor: "#FF5500",
 						weight: 0,
 						fillOpacity: 0.7
-					}).on({
-						mouseover: function(e) {
-							this.openPopup();
-							this.setStyle({color: "yellow"});
-						},
-						mouseout: function(e) {
-							this.closePopup();
-							this.setStyle({color: "#FF5500"});
-						}
-					});
+					}).on('click', function(e){
+						this.bindPopup(popupContent).openPopup();
+					})
+					<!-- .on('mouseover', function(e){ -->
+						<!-- this.openPopup(); -->
+						<!-- this.setStyle({color: "yellow"}); -->
+					<!-- }) -->
+					<!-- .on('mouseout', function(e){ -->
+						<!-- this.closePopup(); -->
+						<!-- this.setStyle({color: "#FF5500"}); -->
+					<!-- }); -->
+					
 				}
 			}).addTo(map);
 			
