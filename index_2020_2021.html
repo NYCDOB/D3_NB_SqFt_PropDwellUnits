@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NB Square Footage & Proposed Dwelling Units</title>
+    <meta charset="utf-8" />
+	<link rel="stylesheet" href="leaflet.css" type="text/css" media="screen" />
+	<link rel="stylesheet" href="style2.css" type="text/css" media="screen" />	
+</head>
+<style>
+.legend {
+		padding: 6px 10px;
+		font: 14px/16px Arial, Helvetica, sans-serif;
+		background: white;
+		background: rgba(255,255,255,0.8);
+		box-shadow: 0 0 15px rgba(0,0,0,0.2);
+		border-radius: 5px;
+		width: 150px;
+}
+#legendTitle {
+		text-align: left;
+		margin-bottom: 15px;
+		font-variant: small-caps;
+}
+.symbolsContainer {
+		float: left;
+		margin-left: 50px;
+}
+.legendCircle {
+		border-radius: 50%;
+		border: 1px solid #000000;
+		display: inline-block;
+}
+.legendValue {
+		position: absolute;	
+		right: 8px;
+}
+#button-wrapper {
+	position: absolute;
+	top: 20px;
+	left: 60px;
+	padding: 4px;
+	border-radius: 0px;
+}
+.btnStyle {
+	border-radius: 5px;
+	background-color: #D8D8D8;
+	border: 1px solid black;
+	color: black;
+	font-size: 13px;
+	font-weight: bold;
+	padding: 4px;
+	width: 100%;
+	
+}
+</style>
+<body>
+	<!-- <div id="map" style="width: 960px; height: 600px"> -->
+	<div id="map" style="width: 900px; height: 500px">
+		<div id = "button-wrapper" class="btn-group-vertical" style="z-index: 401">
+				  <div class="btn-group-vertical">
+					<button type="button" id="sqft" class="btnStyle">Square Footage</button><br><br>
+					<button type="button" id="dwell" class="btnStyle">Dwelling Units</button>
+				  </div>
+		</div>	
+	</div>
+
+    <svg></svg>
+	
+	<script src="https://d3js.org/d3.v3.min.js"></script>
+	<script src="./js/leaflet.js"></script>
+	<script src="./js/leaflet.ajax.min.js"></script>
+	<script src="jquery-2.1.1.min.js"></script>
+	<script src="static/chroniton.js"></script>
+	<link href="static/chroniton.css" rel="stylesheet">
+	
+	<link href="build/nv.d3.css" rel="stylesheet" type="text/css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.2/d3.min.js" charset="utf-8"></script>
+    <script src="build/nv.d3.js"></script>
+	
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <script>
+
+		
+		<!-- var map = L.map('map').setView([40.693703, -73.964477], 11); -->
+		var map = L.map('map').setView([40.741609, -73.960973], 11);
+		var toolserver = L.tileLayer('http://{s}.www.toolserver.org/tiles/bw-mapnik/{z}/{x}/{y}.png');
+		//var stamen = L.tileLayer('http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png', {attribution: ''}).addTo(map); /*Stamen.Toner*/
+		var stamen = L.tileLayer('http://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {attribution: '© <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'}).addTo(map); /*Stamen.TonerLite*/
+		//var stamen = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {attribution: ''}).addTo(map); /*CartoDB.Positron*/
+		//var stamen = L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: ''}).addTo(map); /*OpenStreeMap.Mapkin*/
+		//var stamen = L.tileLayer('http://korona.geog.uni-heidelberg.de/tiles/roads/x={x}&y={y}&z={z}', {attribution: ''}).addTo(map); /*OpenMapSurfer*/
+		//var stamen = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {attribution: ''}).addTo(map); /*Esri.NatGeoWorldMap*/
+		
+		<!-- var startYear = 2007; -->
+		<!-- var endYear = 2016; -->
+		<!-- var currentYear = startYear; -->
+		
+		var commuteById = d3.map();
+			
+		var projection = d3.geo.mercator()
+
+		onload = totsqft();
+
+		
+		var info = L.control();
+		info.onAdd = function(map) {
+			this._div = L.DomUtil.create('div', 'info');
+			return this._div;
+		};
+		info.addTo(map);
+		
+		// Add an SVG element to Leaflet’s overlay pane
+		var svg = d3.select(map.getPanes().overlayPane).append("svg"),
+			g = svg.append("g").attr("class", "leaflet-zoom-hide");
+			
+		map.scrollWheelZoom.disable();
+
+		var sites = 0;
+
+		$("#sqft").click(function(){
+			map.removeLayer(sites);
+			totsqft();
+		})
+		$("#dwell").click(function(){
+			<!-- map.eachLayer(function (layer) { -->
+				<!-- map.removeLayer(layer); -->
+			<!-- }); -->
+			map.removeLayer(sites);
+			propdwell();
+		})
+
+		
+	function totsqft() {
+		
+		$.getJSON("data/NB_SqFt_PropDwell_2020_2021.json")
+				.done(function(data) {
+						var info = processData(data);
+						createPropSymbols(info.header, data);
+						//createLegend(info.min,info.max);
+
+				})
+		.fail(function() { alert("There has been a problem loading the data.")});
+		
+
+		
+		function processData(data) {
+			var header = [];
+			var min = Infinity;
+			var max = -Infinity;
+		
+
+			for (var feature in data.features) {
+				var properties = data.features[feature].properties;
+				for (var attribute in properties) {
+					if (attribute == "Total_Cons") {
+						if ( $.inArray(attribute, header) === -1) {
+							header.push(attribute);
+						}
+						if (properties[attribute] < min) {
+							min = properties[attribute];
+						}
+						if (properties[attribute] > max) {
+							max = properties[attribute];
+						}
+					}
+				}
+			}
+		
+			return {
+				header : header,
+				min : min,
+				max : max
+			}
+		}
+		
+		<!-- function createPropSymbols(header, data) { -->
+			<!-- sites = L.geoJson(data, { -->
+				<!-- pointToLayer: function (feature, latlng) { -->
+					<!-- return L.circleMarker (latlng, { -->
+						<!-- //fillColor: "#FF5500", -->
+						<!-- weight: 0, -->
+						<!-- fillOpacity: 0.7 -->
+					<!-- }).on({ -->
+						<!-- mouseover: function(e) { -->
+							<!-- this.openPopup(); -->
+							<!-- this.setStyle({color: "yellow"}); -->
+						<!-- }, -->
+						<!-- mouseout: function(e) { -->
+							<!-- this.closePopup(); -->
+							<!-- this.setStyle({color: "#FF5500"}); -->
+						<!-- } -->
+					<!-- }); -->
+				<!-- } -->
+			<!-- }).addTo(map); -->
+			
+			<!-- updatePropSymbols(header[0]); -->
+		<!-- } -->
+		
+		function createPropSymbols(header, data) {
+
+			sites = L.geoJson(data, {
+				pointToLayer: function (feature, latlng) {
+			var prop = feature.properties;
+			var popupContent = "<u> ADDRESS </u> <br>" + 
+							<!-- "<b>" + prop.Job_Locati + " " + prop.Job_Loca_1 + ", " + prop.Borough_Na + "</b>" + -->
+							"<b>" + prop.Address + ", " + prop.Borough_Na + "</b>" +
+							"<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+prop.Permit_Iss+"</b>" +
+							"<br> <u> JOB NUMBER </u> <br> "+ "<b>" +prop.Job_Number+"</b>" +
+							"<br> <u> TOTAL SQUARE FOOTAGE </u> <br> "+"<b>"+prop.Total_Cons+"</b>";
+				
+					return L.circleMarker (latlng, {
+						//fillColor: "#FF5500",
+						weight: 0,
+						fillOpacity: 0.7
+
+					}).on('click', function(e){
+						this.bindPopup(popupContent).openPopup();
+					})
+					<!-- .on('mouseover', function(e){ -->
+						<!-- this.openPopup(); -->
+						<!-- this.setStyle({color: "yellow"}); -->
+					<!-- }) -->
+					<!-- .on('mouseout', function(e){ -->
+						<!-- this.closePopup(); -->
+						<!-- this.setStyle({color: "#FF5500"}); -->
+					<!-- }); -->
+				}
+			}).addTo(map);
+			
+			updatePropSymbols(header[0]);
+		}		
+		
+		
+		
+		
+		function updatePropSymbols(header) {
+		
+			sites.eachLayer(function(layer) {
+				var props = layer.feature.properties;
+				var radius = calcPropRadius(props[header]);
+				var color = calcColor(props[header]);
+
+				
+				<!-- var popupContent = "<u> ADDRESS </u> <br>" +  -->
+								<!-- "<b>" + props.Address + ", " + props.Borough_Na + "</b>" + -->
+								<!-- "<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+props.Permit_Iss+"</b>" + -->
+								<!-- "<br> <u> JOB NUMBER </u> <br> "+ "<b>" +props.Job_Number+"</b>" + -->
+								<!-- "<br> <u> TOTAL SQUARE FOOTAGE </u> <br> "+"<b>"+props.Total_Cons+"</b>";								 -->
+				
+				layer.setRadius(radius);
+				layer.setStyle({fillColor: color});
+				//layer.bindPopup(popupContent, { offset: new L.Point(0,-radius) });
+
+			});
+		
+		}
+		
+		function calcPropRadius(attributeValue) {
+			<!-- var scaleFactor = 3; -->
+			<!-- var area = attributeValue * scaleFactor; -->
+			<!-- return Math.sqrt(area/Math.PI)*2; -->
+			
+			//HARD-CODED VALUES
+			if (attributeValue <= 37288) {
+				return 2;
+			} else if (attributeValue >37288 && attributeValue <= 121287) {
+				return 5;
+			} else if (attributeValue >121287 && attributeValue <= 269979) {
+				return 7;
+			} else if (attributeValue >269979 && attributeValue <= 654913) {
+				return 10;
+			} else {
+				return 15;
+			}
+		}
+		
+		function calcColor(attributeValue) {
+			if (attributeValue <= 37288) {
+				return "#F7A65D";
+			} else if (attributeValue >37288 && attributeValue <= 121287) {
+				return "#DC9859";
+			} else if (attributeValue >121287 && attributeValue <= 269979) {
+				return "#C97B50";
+			} else if (attributeValue >269979 && attributeValue <= 654913) {
+				return "#BC6F52";
+			} else {
+				return "#812F27";
+			}
+		
+		}
+		
+
+		/*
+		function createLegend(min, max) {
+			if (min < 1) {
+				min = 1;
+			}
+			
+			function roundNumber(inNumber) {
+				return (Math.round(inNumber/10) * 10);
+			}
+			
+			var legend = L.control( { position: "bottomright" } );
+			
+			legend.onAdd = function(map) {
+				var legendContainer = L.DomUtil.create("div", "legend");
+				var symbolsContainer = L.DomUtil.create("div", "symbolsContainer");
+				//var classes = [roundNumber(min), roundNumber((max-min)/2), roundNumber(max)];
+				var classes = [1, 527982, 1122212]; //HARD-CODED
+				<!-- var classes = [min, (max-min)/2, max]; -->
+				var legendCircle;
+				var lastRadius = 0;
+				var currentRadius;
+				var margin;
+				
+				L.DomEvent.addListener(legendContainer, "mousedown", function(e) {
+					L.DomEvent.stopPropagation(e);
+				});
+				
+				$(legendContainer).append("<h2 id='legendTitle'>Total Square Footage</h2>");
+				
+				for (var i = 0; i <= classes.length-1; i++) {
+					legendCircle = L.DomUtil.create("div", "legendCircle");
+					currentRadius = calcPropRadius(classes[i]);
+					margin = -currentRadius - lastRadius - 2;
+					
+					$(legendCircle).attr("style", "width: " + currentRadius*2 +
+							"px; height: " + currentRadius*2 +
+							"px; margin-left: " + margin + "px" );
+					
+					$(legendCircle).append("<span class='legendValue'>"+classes[i]+"</span>");
+					
+					$(symbolsContainer).append(legendCircle);
+					
+					lastRadius = currentRadius;
+				}
+				
+				$(legendContainer).append(symbolsContainer);
+				
+				return legendContainer;
+				
+				};
+				
+				legend.addTo(map);
+				
+			}
+			*/
+	}		
+	function propdwell(data) {
+	
+		$.getJSON("data/NB_SqFt_PropDwell_2020_2021.json")
+				.done(function(data) {
+						
+						var info = processData(data);
+						createPropSymbols(info.headerdwell, data);
+						//createLegend(info.min,info.max);
+				})
+		.fail(function() { alert("There has been a problem loading the data.")});
+	
+
+		
+		function processData(data) {
+			var headerdwell = [];
+			var min = Infinity;
+			var max = -Infinity;
+			
+			for (var feature in data.features) {
+				var properties = data.features[feature].properties;
+				for (var attribute in properties) {
+					if (attribute == "Proposed_D") {
+						if ( $.inArray(attribute, headerdwell) === -1) {
+							headerdwell.push(attribute);
+						}
+						if (properties[attribute] < min) {
+							min = properties[attribute];
+						}
+						if (properties[attribute] > max) {
+							max = properties[attribute];
+						}
+					}
+				}
+			}
+			return {
+				headerdwell : headerdwell,
+				min : min,
+				max : max
+			}
+		}
+		
+		function createPropSymbols(headerdwell, data) {
+			sites = L.geoJson(data, {
+				pointToLayer: function (feature, latlng) {
+					var prop = feature.properties;
+					var popupContent = "<u> ADDRESS </u> <br>" + 
+									<!-- "<b>" + prop.Job_Locati + " " + prop.Job_Loca_1 + ", " + prop.Borough_Na + "</b>" + -->
+									"<b>" + prop.Address + ", " + prop.Borough_Na + "</b>" +
+									"<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+prop.Permit_Iss+"</b>" +
+									"<br> <u> JOB NUMBER </u> <br> "+ "<b>" +prop.Job_Number+"</b>" +
+									"<br> <u> PROPOSED DWELLING UNITS </u> <br> "+"<b>"+prop.Proposed_D+"</b>";
+				
+				
+					return L.circleMarker (latlng, {
+						//fillColor: "#FF5500",
+						weight: 0,
+						fillOpacity: 0.7
+					}).on('click', function(e){
+						this.bindPopup(popupContent).openPopup();
+					})
+					<!-- .on('mouseover', function(e){ -->
+						<!-- this.openPopup(); -->
+						<!-- this.setStyle({color: "yellow"}); -->
+					<!-- }) -->
+					<!-- .on('mouseout', function(e){ -->
+						<!-- this.closePopup(); -->
+						<!-- this.setStyle({color: "#FF5500"}); -->
+					<!-- }); -->
+					
+				}
+			}).addTo(map);
+			
+			updatePropSymbols(headerdwell[0]);
+		}
+		
+		function updatePropSymbols(headerdwell) {
+			sites.eachLayer(function(layer) {
+				var props = layer.feature.properties;
+				var radius = calcPropRadius(props[headerdwell]);
+				var color = calcColor(props[headerdwell]);
+								
+				var popupContent = "<u> ADDRESS </u> <br>" + 
+								<!-- "<b>" + props.Job_Locati + " " + props.Job_Loca_1 + ", " + props.Borough_Na + "</b>" + -->
+								"<b>" + props.Address + ", " + props.Borough_Na + "</b>" +
+								"<br> <u> PERMIT ISSUANCE DATE </u> <br> "+ "<b>"+props.Permit_Iss+"</b>" +
+								"<br> <u> JOB NUMBER </u> <br> "+ "<b>" +props.Job_Number+"</b>" +
+								"<br> <u> PROPOSED DWELLING UNITS </u> <br> "+"<b>"+props.Proposed_D+"</b>";								
+				
+				layer.setRadius(radius);
+				layer.setStyle({fillColor: color});
+				layer.bindPopup(popupContent, { offset: new L.Point(0,-radius) });
+			});
+		}
+		
+		function calcPropRadius(attributeValue) {
+			<!-- var scaleFactor = 3; -->
+			<!-- var area = attributeValue * scaleFactor; -->
+			<!-- return Math.sqrt(area/Math.PI)*2; -->
+			
+			//HARD-CODED VALUES
+			if (attributeValue <= 36) {
+				return 2;
+			} else if (attributeValue >36 && attributeValue <= 126) {
+				return 5;
+			} else if (attributeValue >126 && attributeValue <= 282) {
+				return 7;
+			} else if (attributeValue >282 && attributeValue <= 591) {
+				return 10;
+			} else {
+				return 15;
+			}
+		}
+		
+		function calcColor(attributeValue) {
+			if (attributeValue <= 36) {
+				return "#9CC8F0";
+			} else if (attributeValue >36 && attributeValue <= 126) {
+				return "#9CC8F0";
+			} else if (attributeValue >126 && attributeValue <= 282) {
+				return "#4E9EE3";
+			} else if (attributeValue >282 && attributeValue <= 591) {
+				return "#487EA9";
+			} else {
+				return "#445E71";
+			}
+		
+		}
+		/*
+		function createLegend(min, max) {
+			if (min < 1) {
+				min = 1;
+			}
+			
+			function roundNumber(inNumber) {
+				return (Math.round(inNumber/10) * 10);
+			}
+			
+			var legend = L.control( { position: "bottomright" } );
+			
+			legend.onAdd = function(map) {
+				var legendContainer = L.DomUtil.create("div", "legend");
+				var symbolsContainer = L.DomUtil.create("div", "symbolsContainer");
+				//var classes = [roundNumber(min), roundNumber((max-min)/2), roundNumber(max)];
+				var classes = [1, 527982, 1122212]; //HARD-CODED
+				<!-- var classes = [min, (max-min)/2, max]; -->
+				var legendCircle;
+				var lastRadius = 0;
+				var currentRadius;
+				var margin;
+				
+				L.DomEvent.addListener(legendContainer, "mousedown", function(e) {
+					L.DomEvent.stopPropagation(e);
+				});
+				
+				$(legendContainer).append("<h2 id='legendTitle'>Total Square Footage</h2>");
+				
+				for (var i = 0; i <= classes.length-1; i++) {
+					legendCircle = L.DomUtil.create("div", "legendCircle");
+					currentRadius = calcPropRadius(classes[i]);
+					margin = -currentRadius - lastRadius - 2;
+					
+					$(legendCircle).attr("style", "width: " + currentRadius*2 +
+							"px; height: " + currentRadius*2 +
+							"px; margin-left: " + margin + "px" );
+					
+					$(legendCircle).append("<span class='legendValue'>"+classes[i]+"</span>");
+					
+					$(symbolsContainer).append(legendCircle);
+					
+					lastRadius = currentRadius;
+				}
+				
+				$(legendContainer).append(symbolsContainer);
+				
+				return legendContainer;
+				
+				};
+				
+				legend.addTo(map);
+				
+			}
+			*/
+	}
+	
+    </script>
+</body>
+</html>
